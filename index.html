@@ -4,12 +4,12 @@
   <meta charset="UTF-8">
   <title>日本地図 現在地表示</title>
   <style>
-    canvas { border: 1px solid #ccc; }
-    body { font-family: sans-serif; text-align: center; }
+    body { font-family: sans-serif; text-align: center; margin: 0; padding: 0; }
+    canvas { display: block; margin: auto; border: 1px solid #ccc; }
   </style>
 </head>
 <body>
-  <h1>日本地図上の現在地</h1>
+  <h1>日本地図の現在地表示（GPS対応）</h1>
   <canvas id="mapCanvas" width="1200" height="1600"></canvas>
 
   <script>
@@ -17,53 +17,60 @@
     const ctx = canvas.getContext("2d");
 
     const mapImage = new Image();
-    mapImage.src = "japanesemap-10012.png"; // 日本本土の地図
+    mapImage.src = "japanesemap-10012.png"; // 地図画像
 
     const pinImage = new Image();
-    pinImage.src = "pin.png"; // マーカー画像（📍）
+    pinImage.src = "pin.png"; // ピン画像
 
-    // 日本本土全体の緯度経度範囲
+    // 日本本土の緯度経度範囲（沖縄などを除く）
     const latTop = 45.5;
     const latBottom = 30.0;
     const lngLeft = 129.0;
     const lngRight = 146.0;
 
+    // 緯度経度 → キャンバス座標変換
     function latLngToXY(lat, lng) {
       const x = ((lng - lngLeft) / (lngRight - lngLeft)) * canvas.width;
       const y = ((latTop - lat) / (latTop - latBottom)) * canvas.height;
       return { x, y };
     }
 
+    // ピンを描画
     function drawPinMarker(x, y) {
       const pinWidth = 32, pinHeight = 32;
       ctx.drawImage(pinImage, x - pinWidth / 2, y - pinHeight, pinWidth, pinHeight);
-      ctx.font = "14px sans-serif";
       ctx.fillStyle = "black";
+      ctx.font = "14px sans-serif";
       ctx.fillText("現在地", x + 16, y - pinHeight / 2);
     }
 
     let mapReady = false;
     let pinReady = false;
 
+    // 仮のマーカー表示（京都あたり）
     function drawInitialMap() {
       if (mapReady && pinReady) {
         ctx.drawImage(mapImage, 0, 0, canvas.width, canvas.height);
-        const { x, y } = latLngToXY(35.0, 135.0); // 仮位置：京都中心あたり
+        const { x, y } = latLngToXY(35.0, 135.0);
         drawPinMarker(x, y);
       }
     }
 
+    // GPSから取得した座標で再描画
     function drawWithGPS(lat, lng) {
+      console.log("GPS取得成功：", lat, lng);
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       ctx.drawImage(mapImage, 0, 0, canvas.width, canvas.height);
       const { x, y } = latLngToXY(lat, lng);
       drawPinMarker(x, y);
     }
 
+    // 地図読み込み完了時に仮ピン描画＆GPS起動
     mapImage.onload = () => {
       mapReady = true;
       drawInitialMap();
 
+      // GPS使用
       if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(
           (pos) => {
@@ -71,7 +78,7 @@
             drawWithGPS(latitude, longitude);
           },
           (err) => {
-            console.warn("位置情報取得失敗:", err.message);
+            alert("GPS取得失敗：" + err.message);
           }
         );
       } else {
@@ -83,6 +90,10 @@
       pinReady = true;
       drawInitialMap();
     };
+
+    // エラーハンドリング
+    mapImage.onerror = () => alert("❌ 地図画像の読み込みに失敗しました（japanesemap-10012.png）");
+    pinImage.onerror = () => alert("❌ ピン画像の読み込みに失敗しました（pin.png）");
   </script>
 </body>
 </html>
